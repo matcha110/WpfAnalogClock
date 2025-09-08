@@ -4,9 +4,10 @@ using System.IO;
 using System.Media;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Controls;      
 using System.Windows.Input;
-using System.Windows.Interop;
+using System.Windows.Interop;       
+using System.Windows.Media;         
 using System.Windows.Media.Imaging;
 using System.Windows.Resources;
 using System.Windows.Threading;
@@ -27,6 +28,12 @@ namespace WpfAnalogClock
         private const int WM_NCLBUTTONDOWN = 0x00A1;
         private const int HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13, HTTOPRIGHT = 14, HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
 
+        private double _baseWidth;
+        private double _baseHeight;
+        private double _baseMinWidth;
+        private double _baseMinHeight;
+        private double _scale = 1.0; // 現在の倍率
+
         public MainWindow()
         {
             try
@@ -39,7 +46,11 @@ namespace WpfAnalogClock
                 throw;
             }
 
-            // 画像/WAVの読み込み
+            _baseWidth = this.Width;
+            _baseHeight = this.Height;
+            _baseMinWidth = this.MinWidth;
+            _baseMinHeight = this.MinHeight;
+
             try
             {
                 LoadResources();
@@ -59,50 +70,27 @@ namespace WpfAnalogClock
             _alarmTimer.Start();
 
             UpdateClock();
+
+            ApplyScale(1.0);
         }
 
-        private void LoadResources()
-        {
-            // 画像ファイル
-            const string FACE = "Clock_Face-001.png";
-            const string HOUR = "Clock-Hand-001h.png";
-            const string MIN = "Clock-Hand-001m.png";
-            // 音声ファイル
-            const string WAV = "Clock-Alarm04-01.wav";
-
-            // 画像ロード
-            ImgFace.Source = LoadBitmapWithFallback("resources", FACE, out _);
-            ImgHour.Source = LoadBitmapWithFallback("resources", HOUR, out _);
-            ImgMinute.Source = LoadBitmapWithFallback("resources", MIN, out _);
-
-            // WAVロード
-            _wavStream = LoadStreamWithFallback("resources", WAV, out _);
-            _player = (_wavStream != null) ? new SoundPlayer(_wavStream) : null;
-            _player?.Load();
-        }
-
-        // ===== コンテキストメニュー =====
         private void CtxMenu_Opened(object sender, RoutedEventArgs e)
         {
-            if (MiToggleAlarm == null || AlarmPanel == null) return;
+            if (MiToggleAlarm != null && AlarmPanel != null)
+            {
+                MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible)
+                    ? "アラームを隠す"
+                    : "アラームを表示";
+            }
 
             if (MiTopmost != null)
+            {
                 MiTopmost.IsChecked = this.Topmost;
+            }
 
-            MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible)
-                ? "アラームを隠す"
-                : "アラームを表示";
+            SetScaleMenuChecks(_scale);
         }
 
-        // 最前面設定
-        private void Menu_Topmost_Click(object sender, RoutedEventArgs e)
-        {
-            this.Topmost = !this.Topmost;
-            if (MiTopmost != null)
-                MiTopmost.IsChecked = this.Topmost;
-        }
-
-        // アラーム設定
         private void Menu_ToggleAlarm_Click(object sender, RoutedEventArgs e)
         {
             if (AlarmPanel == null) return;
@@ -125,12 +113,60 @@ namespace WpfAnalogClock
             }
         }
 
+        private void Menu_Topmost_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = !this.Topmost;
+            if (MiTopmost != null)
+                MiTopmost.IsChecked = this.Topmost; 
+        }
+
+        private void Menu_Scale_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is string s && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
+            {
+                ApplyScale(scale);
+                SetScaleMenuChecks(scale);
+            }
+        }
+
+        private void ApplyScale(double scale)
+        {
+            _scale = scale;
+
+            RootGrid.LayoutTransform = new ScaleTransform(scale, scale);
+
+            this.Width = _baseWidth * scale;
+            this.Height = _baseHeight * scale;
+
+            this.MinWidth = _baseMinWidth * scale;
+            this.MinHeight = _baseMinHeight * scale;
+        }
+
+        private void SetScaleMenuChecks(double scale)
+        {
+            // スケール候補
+            (MenuItem? mi, double v)[] items =
+            {
+                (MiScale050, 0.5),
+                (MiScale075, 0.75),
+                (MiScale100, 1.0),
+                (MiScale125, 1.25),
+                (MiScale150, 1.5),
+            };
+
+            // 微小な差は許容
+            foreach (var (mi, v) in items)
+            {
+                if (mi != null)
+                    mi.IsChecked = Math.Abs(scale - v) < 0.0001;
+            }
+        }
+
         private void BeginResize(int hitTest)
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             if (hwnd == IntPtr.Zero) return;
             if (Mouse.LeftButton != MouseButtonState.Pressed) return;
-
             SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)hitTest, IntPtr.Zero);
         }
         private void Resize_Left_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTLEFT);
@@ -141,6 +177,22 @@ namespace WpfAnalogClock
         private void Resize_TopRight_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTTOPRIGHT);
         private void Resize_BottomLeft_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOMLEFT);
         private void Resize_BottomRight_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOMRIGHT);
+
+        private void LoadResources()
+        {
+            const string FACE = "Clock_Face-001.png";
+            const string HOUR = "Clock-Hand-001h.png";
+            const string MIN = "Clock-Hand-001m.png";
+            const string WAV = "Clock-Alarm04-01.wav";
+
+            ImgFace.Source = LoadBitmapWithFallback("resources", FACE, out _);
+            ImgHour.Source = LoadBitmapWithFallback("resources", HOUR, out _);
+            ImgMinute.Source = LoadBitmapWithFallback("resources", MIN, out _);
+
+            _wavStream = LoadStreamWithFallback("resources", WAV, out _);
+            _player = (_wavStream != null) ? new SoundPlayer(_wavStream) : null;
+            _player?.Load();
+        }
 
         private BitmapImage? LoadBitmapWithFallback(string folder, string file, out string info)
         {
@@ -281,20 +333,20 @@ namespace WpfAnalogClock
             return ms;
         }
 
-        private static BitmapImage LoadBitmapFromPack(string packUri)
-        {
-            var uri = new Uri(packUri, UriKind.Absolute);
-            StreamResourceInfo? info = Application.GetResourceStream(uri);
-            if (info?.Stream == null) throw new IOException($"画像が見つかりません: {packUri}");
+        //private static BitmapImage LoadBitmapFromPack(string packUri)
+        //{
+        //    var uri = new Uri(packUri, UriKind.Absolute);
+        //    StreamResourceInfo? info = Application.GetResourceStream(uri);
+        //    if (info?.Stream == null) throw new IOException($"画像が見つかりません: {packUri}");
 
-            var bmp = new BitmapImage();
-            bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad;
-            bmp.StreamSource = info.Stream;
-            bmp.EndInit();
-            bmp.Freeze();
-            return bmp;
-        }
+        //    var bmp = new BitmapImage();
+        //    bmp.BeginInit();
+        //    bmp.CacheOption = BitmapCacheOption.OnLoad;
+        //    bmp.StreamSource = info.Stream;
+        //    bmp.EndInit();
+        //    bmp.Freeze();
+        //    return bmp;
+        //}
 
         // ===== 時計描画更新 =====
         private void UpdateClock()
@@ -309,7 +361,7 @@ namespace WpfAnalogClock
             RtHour.Angle = hourAngle;
         }
 
-        // ===== ドラッグで移動=====
+        // ===== ドラッグで移動 =====
         private void RootGrid_MouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
         {
             if (e.ButtonState == MouseButtonState.Pressed)

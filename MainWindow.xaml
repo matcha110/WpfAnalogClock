@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Analog Clock"
         Width="280" Height="360"
-        MinWidth="260" MinHeight="320"
+        MinWidth="140" MinHeight="180"
         WindowStyle="None"
-    AllowsTransparency="True"
-    Background="Transparent"
-    ResizeMode="NoResize"
-    WindowStartupLocation="CenterScreen">
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
 
     <!-- ルート Grid -->
     <Grid x:Name="RootGrid"
@@ -26,6 +26,14 @@
                           Header="最前面に固定"
                           IsCheckable="True"
                           Click="Menu_Topmost_Click"/>
+                <Separator/>
+                <MenuItem Header="サイズ">
+                    <MenuItem x:Name="MiScale050" Header="x0.5"  IsCheckable="True" Tag="0.5"  Click="Menu_Scale_Click"/>
+                    <MenuItem x:Name="MiScale075" Header="x0.75" IsCheckable="True" Tag="0.75" Click="Menu_Scale_Click"/>
+                    <MenuItem x:Name="MiScale100" Header="x1.0（デフォルト）" IsCheckable="True" Tag="1.0"  Click="Menu_Scale_Click"/>
+                    <MenuItem x:Name="MiScale125" Header="x1.25" IsCheckable="True" Tag="1.25" Click="Menu_Scale_Click"/>
+                    <MenuItem x:Name="MiScale150" Header="x1.5"  IsCheckable="True" Tag="1.5"  Click="Menu_Scale_Click"/>
+                </MenuItem>
             </ContextMenu>
         </Grid.ContextMenu>
 
@@ -58,7 +66,7 @@
         </Grid>
 
         <!-- 下部：アラームUI（右クリックで表示/非表示を切替） -->
-        <Border x:Name="AlarmPanel"
+        <Border x:Name="AlarmPanel"                                 
             VerticalAlignment="Bottom" Margin="0,12,0,0" Padding="10"
                 Background="#1A000000" CornerRadius="12"
                 Visibility="Collapsed">
