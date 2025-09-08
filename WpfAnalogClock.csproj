@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="resources\Clock_Face-001.png" />
+    <Resource Include="resources\Clock-Hand-001h.png" />
+    <Resource Include="resources\Clock-Hand-001m.png" />
+    <Resource Include="resources\Clock-Alarm04-01.wav" />
+</ItemGroup>
+
+</Project>

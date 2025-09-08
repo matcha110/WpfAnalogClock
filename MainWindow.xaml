@@ -1,0 +1,87 @@
+﻿<Window x:Class="WpfAnalogClock.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Analog Clock"
+        Width="520" Height="600"
+        MinWidth="360" MinHeight="420"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterScreen"
+        Background="#222">
+
+    <!-- ウィンドウ全体をドラッグ移動可能にするためのルート Grid -->
+    <Grid MouseLeftButtonDown="RootGrid_MouseLeftButtonDown" Margin="8">
+
+        <!-- 画像レイヤ（背景・時針・分針） -->
+        <Grid>
+            <!-- 背景：時計盤（Sourceはコードビハインドで設定） -->
+            <Image x:Name="ImgFace"
+                   Stretch="Uniform"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+
+            <!-- 時針（中心回転、Sourceはコード側） -->
+            <Image x:Name="ImgHour"
+                   Stretch="Uniform"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <RotateTransform x:Name="RtHour" Angle="0"/>
+                </Image.RenderTransform>
+            </Image>
+
+            <!-- 分針（中心回転、Sourceはコード側） -->
+            <Image x:Name="ImgMinute"
+                   Stretch="Uniform"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <RotateTransform x:Name="RtMinute" Angle="0"/>
+                </Image.RenderTransform>
+            </Image>
+        </Grid>
+
+        <!-- 下部：アラームUI（簡易） -->
+        <Border VerticalAlignment="Bottom" Margin="0,12,0,0" Padding="10"
+                Background="#1A000000" CornerRadius="12">
+            <StackPanel Orientation="Vertical">
+                <TextBlock x:Name="TxtNow"
+                           Foreground="White"
+                           FontSize="18"
+                           Text="--:--"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,6"/>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
+                    <TextBlock Text="アラーム (HH:mm):" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox x:Name="TxtAlarm"
+                             Width="80"
+                             MaxLength="5"
+                             Text="07:00"
+                             ToolTip="例) 07:00 / 18:30"
+                             VerticalContentAlignment="Center"
+                             Margin="0,0,8,0"/>
+                    <CheckBox x:Name="ChkEnableAlarm"
+                              Content="有効化"
+                              Foreground="White"
+                              VerticalAlignment="Center"
+                              Checked="ChkEnableAlarm_Checked"
+                              Unchecked="ChkEnableAlarm_Unchecked"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                    <Button x:Name="BtnStop"
+                            Content="アラーム停止"
+                            Click="BtnStop_Click"
+                            IsEnabled="False"
+                            Padding="8,4"/>
+                </StackPanel>
+
+                <TextBlock x:Name="TxtStatus"
+                           Foreground="#DDD"
+                           FontSize="12"
+                           Text="アラーム未設定"
+                           TextWrapping="Wrap"
+                           Opacity="0.9"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
