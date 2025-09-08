@@ -2,8 +2,11 @@
 using System.Globalization;
 using System.IO;
 using System.Media;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using System.Windows.Resources;
 using System.Windows.Threading;
@@ -16,9 +19,13 @@ namespace WpfAnalogClock
         private readonly DispatcherTimer _alarmTimer = new DispatcherTimer();
 
         private SoundPlayer? _player;
-        private MemoryStream? _wavStream;  // ★ WAV を保持するためのフィールド
+        private MemoryStream? _wavStream;
         private bool _isRinging = false;
         private TimeSpan? _alarmTime = null;
+
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        private const int WM_NCLBUTTONDOWN = 0x00A1;
+        private const int HTLEFT = 10, HTRIGHT = 11, HTTOP = 12, HTTOPLEFT = 13, HTTOPRIGHT = 14, HTBOTTOM = 15, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
 
         public MainWindow()
         {
@@ -28,12 +35,11 @@ namespace WpfAnalogClock
             }
             catch (Exception ex)
             {
-                // ここで必ず中身を見える化（何も出ずに落ちるのを防ぐ）
                 MessageBox.Show(ex.ToString(), "InitializeComponent() で例外", MessageBoxButton.OK, MessageBoxImage.Error);
                 throw;
             }
 
-            // 画像/WAV を安全に読み込む
+            // 画像/WAVの読み込み
             try
             {
                 LoadResources();
@@ -43,7 +49,7 @@ namespace WpfAnalogClock
                 MessageBox.Show(ex.ToString(), "LoadResources() で例外", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
-            // タイマー開始
+            // タイマー開始（1秒ごとに更新）
             _tickTimer.Interval = TimeSpan.FromSeconds(1);
             _tickTimer.Tick += (_, __) => UpdateClock();
             _tickTimer.Start();
@@ -55,59 +61,103 @@ namespace WpfAnalogClock
             UpdateClock();
         }
 
-        /// <summary>
-        /// resources/ 配下の画像3枚と WAV を安全にロードして適用。
-        /// すべて OnLoad で完全読込し、元ストリームを閉じても動くようにする。
-        /// </summary>
         private void LoadResources()
         {
-            // 現在の実ファイル名（あなたの環境に合わせている）
+            // 画像ファイル
             const string FACE = "Clock_Face-001.png";
             const string HOUR = "Clock-Hand-001h.png";
             const string MIN = "Clock-Hand-001m.png";
+            // 音声ファイル
             const string WAV = "Clock-Alarm04-01.wav";
 
-            // 画像ロード（成功したパス/失敗理由をステータスに出す）
-            ImgFace.Source = LoadBitmapWithFallback("resources", FACE, out var faceInfo);
-            ImgHour.Source = LoadBitmapWithFallback("resources", HOUR, out var hourInfo);
-            ImgMinute.Source = LoadBitmapWithFallback("resources", MIN, out var minInfo);
+            // 画像ロード
+            ImgFace.Source = LoadBitmapWithFallback("resources", FACE, out _);
+            ImgHour.Source = LoadBitmapWithFallback("resources", HOUR, out _);
+            ImgMinute.Source = LoadBitmapWithFallback("resources", MIN, out _);
 
-            // WAVロード（SoundPlayerはMemoryStream保持）
-            _wavStream = LoadStreamWithFallback("resources", WAV, out var wavInfo);
+            // WAVロード
+            _wavStream = LoadStreamWithFallback("resources", WAV, out _);
             _player = (_wavStream != null) ? new SoundPlayer(_wavStream) : null;
             _player?.Load();
-
         }
+
+        // ===== コンテキストメニュー =====
+        private void CtxMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (MiToggleAlarm == null || AlarmPanel == null) return;
+
+            if (MiTopmost != null)
+                MiTopmost.IsChecked = this.Topmost;
+
+            MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible)
+                ? "アラームを隠す"
+                : "アラームを表示";
+        }
+
+        // 最前面設定
+        private void Menu_Topmost_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = !this.Topmost;
+            if (MiTopmost != null)
+                MiTopmost.IsChecked = this.Topmost;
+        }
+
+        // アラーム設定
+        private void Menu_ToggleAlarm_Click(object sender, RoutedEventArgs e)
+        {
+            if (AlarmPanel == null) return;
+
+            if (AlarmPanel.Visibility == Visibility.Visible)
+            {
+                AlarmPanel.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                AlarmPanel.Visibility = Visibility.Visible;
+                ApplyAlarmFromText();
+            }
+
+            if (MiToggleAlarm != null)
+            {
+                MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible)
+                    ? "アラームを隠す"
+                    : "アラームを表示";
+            }
+        }
+
+        private void BeginResize(int hitTest)
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            if (Mouse.LeftButton != MouseButtonState.Pressed) return;
+
+            SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)hitTest, IntPtr.Zero);
+        }
+        private void Resize_Left_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTLEFT);
+        private void Resize_Right_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTRIGHT);
+        private void Resize_Top_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTTOP);
+        private void Resize_Bottom_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOM);
+        private void Resize_TopLeft_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTTOPLEFT);
+        private void Resize_TopRight_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTTOPRIGHT);
+        private void Resize_BottomLeft_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOMLEFT);
+        private void Resize_BottomRight_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOMRIGHT);
 
         private BitmapImage? LoadBitmapWithFallback(string folder, string file, out string info)
         {
             var logs = new System.Text.StringBuilder();
 
-            // (1) component付きpack
             if (TryLoadBitmapFromPack($@"pack://application:,,,/;component/{folder}/{file}", out var bmp1, out var e1))
-            {
-                info = $"OK component:{folder}/{file}";
-                return bmp1;
-            }
+            { info = $"OK component:{folder}/{file}"; return bmp1; }
             logs.AppendLine($"x component: {e1?.Message}");
 
-            // (2) 通常pack
             if (TryLoadBitmapFromPack($@"pack://application:,,,/{folder}/{file}", out var bmp2, out var e2))
-            {
-                info = $"OK pack:{folder}/{file}";
-                return bmp2;
-            }
+            { info = $"OK pack:{folder}/{file}"; return bmp2; }
             logs.AppendLine($"x pack: {e2?.Message}");
 
-            // (3) siteoforigin (Content + Copy to Output で有効)
             if (TryLoadBitmapFromPack($@"pack://siteoforigin:,,,/{folder}/{file}", out var bmp3, out var e3))
-            {
-                info = $"OK siteoforigin:{folder}/{file}";
-                return bmp3;
-            }
+            { info = $"OK siteoforigin:{folder}/{file}"; return bmp3; }
             logs.AppendLine($"x siteoforigin: {e3?.Message}");
 
-            // (4) 実ファイル
             var path = System.IO.Path.Combine(AppContext.BaseDirectory, folder, file);
             if (System.IO.File.Exists(path))
             {
@@ -122,15 +172,9 @@ namespace WpfAnalogClock
                     info = $"OK file:{path}";
                     return bmp;
                 }
-                catch (Exception ex)
-                {
-                    logs.AppendLine($"x file:{path} => {ex.Message}");
-                }
+                catch (Exception ex) { logs.AppendLine($"x file:{path} => {ex.Message}"); }
             }
-            else
-            {
-                logs.AppendLine($"x file not found:{path}");
-            }
+            else logs.AppendLine($"x file not found:{path}");
 
             info = logs.ToString().TrimEnd();
             return null;
@@ -142,9 +186,8 @@ namespace WpfAnalogClock
             try
             {
                 var uri = new Uri(packUri, UriKind.Absolute);
-                var sri = Application.GetResourceStream(uri);  // Resource のみ有効
-                if (sri?.Stream == null)
-                    throw new IOException("GetResourceStream returned null");
+                var sri = Application.GetResourceStream(uri);
+                if (sri?.Stream == null) throw new IOException("GetResourceStream returned null");
 
                 var b = new BitmapImage();
                 b.BeginInit();
@@ -155,45 +198,25 @@ namespace WpfAnalogClock
                 bmp = b;
                 return true;
             }
-            catch (Exception ex)
-            {
-                error = ex;
-                return false;
-            }
+            catch (Exception ex) { error = ex; return false; }
         }
 
-        /// <summary>
-        /// WAV用：画像と同様の手順で MemoryStream を返す
-        /// </summary>
         private MemoryStream? LoadStreamWithFallback(string folder, string file, out string info)
         {
             var logs = new System.Text.StringBuilder();
 
-            // (1) component付きpack
             if (TryLoadStreamFromPack($@"pack://application:,,,/;component/{folder}/{file}", out var ms1, out var e1))
-            {
-                info = $"OK component:{folder}/{file}";
-                return ms1;
-            }
+            { info = $"OK component:{folder}/{file}"; return ms1; }
             logs.AppendLine($"x component: {e1?.Message}");
 
-            // (2) 通常pack
             if (TryLoadStreamFromPack($@"pack://application:,,,/{folder}/{file}", out var ms2, out var e2))
-            {
-                info = $"OK pack:{folder}/{file}";
-                return ms2;
-            }
+            { info = $"OK pack:{folder}/{file}"; return ms2; }
             logs.AppendLine($"x pack: {e2?.Message}");
 
-            // (3) siteoforigin
             if (TryLoadFileStreamFromSiteOfOrigin($@"{folder}/{file}", out var ms3, out var e3))
-            {
-                info = $"OK siteoforigin:{folder}/{file}";
-                return ms3;
-            }
+            { info = $"OK siteoforigin:{folder}/{file}"; return ms3; }
             logs.AppendLine($"x siteoforigin: {e3?.Message}");
 
-            // (4) 実ファイル
             var path = System.IO.Path.Combine(AppContext.BaseDirectory, folder, file);
             if (System.IO.File.Exists(path))
             {
@@ -203,15 +226,9 @@ namespace WpfAnalogClock
                     info = $"OK file:{path}";
                     return ms;
                 }
-                catch (Exception ex)
-                {
-                    logs.AppendLine($"x file:{path} => {ex.Message}");
-                }
+                catch (Exception ex) { logs.AppendLine($"x file:{path} => {ex.Message}"); }
             }
-            else
-            {
-                logs.AppendLine($"x file not found:{path}");
-            }
+            else logs.AppendLine($"x file not found:{path}");
 
             info = logs.ToString().TrimEnd();
             return null;
@@ -224,8 +241,7 @@ namespace WpfAnalogClock
             {
                 var uri = new Uri(packUri, UriKind.Absolute);
                 var sri = Application.GetResourceStream(uri);
-                if (sri?.Stream == null)
-                    throw new IOException("GetResourceStream returned null");
+                if (sri?.Stream == null) throw new IOException("GetResourceStream returned null");
 
                 var mem = new MemoryStream();
                 sri.Stream.CopyTo(mem);
@@ -233,11 +249,7 @@ namespace WpfAnalogClock
                 ms = mem;
                 return true;
             }
-            catch (Exception ex)
-            {
-                error = ex;
-                return false;
-            }
+            catch (Exception ex) { error = ex; return false; }
         }
 
         private static bool TryLoadFileStreamFromSiteOfOrigin(string relative, out MemoryStream? ms, out Exception? error)
@@ -254,49 +266,37 @@ namespace WpfAnalogClock
                 ms = mem;
                 return true;
             }
-            catch (Exception ex)
-            {
-                error = ex;
-                return false;
-            }
+            catch (Exception ex) { error = ex; return false; }
         }
 
-        /// <summary>
-        /// pack URI のリソースを MemoryStream に完全コピーして返す。
-        /// 見つからない/読み込み不可なら IOException を投げる。
-        /// </summary>
         private static MemoryStream LoadMemoryStreamFromPack(string packUri)
         {
             var uri = new Uri(packUri, UriKind.Absolute);
             StreamResourceInfo? info = Application.GetResourceStream(uri);
-            if (info?.Stream == null)
-                throw new IOException($"リソースが見つかりません: {packUri}");
+            if (info?.Stream == null) throw new IOException($"リソースが見つかりません: {packUri}");
 
             var ms = new MemoryStream();
             info.Stream.CopyTo(ms);
             ms.Position = 0;
-            return ms; // 呼び出し側が保持する（ここでは _wavStream）
+            return ms;
         }
 
-        /// <summary>
-        /// pack URI の画像を BitmapImage(OnLoad) で返す（元ストリームは閉じてOK）。
-        /// </summary>
         private static BitmapImage LoadBitmapFromPack(string packUri)
         {
             var uri = new Uri(packUri, UriKind.Absolute);
             StreamResourceInfo? info = Application.GetResourceStream(uri);
-            if (info?.Stream == null)
-                throw new IOException($"画像が見つかりません: {packUri}");
+            if (info?.Stream == null) throw new IOException($"画像が見つかりません: {packUri}");
 
             var bmp = new BitmapImage();
             bmp.BeginInit();
-            bmp.CacheOption = BitmapCacheOption.OnLoad; // 全読込
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
             bmp.StreamSource = info.Stream;
             bmp.EndInit();
             bmp.Freeze();
             return bmp;
         }
 
+        // ===== 時計描画更新 =====
         private void UpdateClock()
         {
             var now = DateTime.Now;
@@ -309,14 +309,16 @@ namespace WpfAnalogClock
             RtHour.Angle = hourAngle;
         }
 
+        // ===== ドラッグで移動=====
         private void RootGrid_MouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
         {
             if (e.ButtonState == MouseButtonState.Pressed)
             {
-                try { DragMove(); } catch { /* サイズ変更中などの例外は無視 */ }
+                try { DragMove(); } catch { /* 無視 */ }
             }
         }
 
+        // ===== アラーム関連 =====
         private void ApplyAlarmFromText()
         {
             string text = TxtAlarm.Text.Trim();
@@ -350,7 +352,6 @@ namespace WpfAnalogClock
         {
             if (_player == null)
             {
-                // 念のため再ロード
                 _wavStream = LoadMemoryStreamFromPack("pack://application:,,,/resources/Clock-Alarm04-01.wav");
                 _player = new SoundPlayer(_wavStream);
                 _player.Load();
@@ -401,20 +402,16 @@ namespace WpfAnalogClock
             TxtStatus.Text = "アラーム未設定";
         }
 
-        private void BtnStop_Click(object sender, RoutedEventArgs e)
-        {
-            StopAlarm();
-        }
+        private void BtnStop_Click(object sender, RoutedEventArgs e) => StopAlarm();
 
         protected override void OnClosed(EventArgs e)
         {
             try
             {
                 _player?.Stop();
-                // _wavStream はアプリ終了で OS が開放。ここで明示 dispose しても OK。
                 _wavStream?.Dispose();
             }
-            catch { }
+            catch { /* 無視 */ }
             base.OnClosed(e);
         }
     }

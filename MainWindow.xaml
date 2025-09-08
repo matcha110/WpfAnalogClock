@@ -2,23 +2,41 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Analog Clock"
-        Width="520" Height="600"
-        MinWidth="360" MinHeight="420"
-        ResizeMode="CanResizeWithGrip"
-        WindowStartupLocation="CenterScreen"
-        Background="#222">
+        Width="280" Height="360"
+        MinWidth="260" MinHeight="320"
+        WindowStyle="None"
+    AllowsTransparency="True"
+    Background="Transparent"
+    ResizeMode="NoResize"
+    WindowStartupLocation="CenterScreen">
 
-    <!-- ウィンドウ全体をドラッグ移動可能にするためのルート Grid -->
-    <Grid MouseLeftButtonDown="RootGrid_MouseLeftButtonDown" Margin="8">
+    <!-- ルート Grid -->
+    <Grid x:Name="RootGrid"
+          MouseLeftButtonDown="RootGrid_MouseLeftButtonDown"
+          Margin="8">
 
-        <!-- 画像レイヤ（背景・時針・分針） -->
+        <!-- 右クリック用コンテキストメニュー -->
+        <Grid.ContextMenu>
+            <ContextMenu Opened="CtxMenu_Opened">
+                <MenuItem x:Name="MiToggleAlarm"
+                          Header="アラームを表示/隠す"
+                          Click="Menu_ToggleAlarm_Click"/>
+                <Separator/>
+                <MenuItem x:Name="MiTopmost"
+                          Header="最前面に固定"
+                          IsCheckable="True"
+                          Click="Menu_Topmost_Click"/>
+            </ContextMenu>
+        </Grid.ContextMenu>
+
+        <!-- 画像レイヤ -->
         <Grid>
-            <!-- 背景：時計盤（Sourceはコードビハインドで設定） -->
+            <!-- 背景：時計盤 -->
             <Image x:Name="ImgFace"
                    Stretch="Uniform"
                    RenderOptions.BitmapScalingMode="HighQuality"/>
 
-            <!-- 時針（中心回転、Sourceはコード側） -->
+            <!-- 時針 -->
             <Image x:Name="ImgHour"
                    Stretch="Uniform"
                    RenderOptions.BitmapScalingMode="HighQuality"
@@ -28,7 +46,7 @@
                 </Image.RenderTransform>
             </Image>
 
-            <!-- 分針（中心回転、Sourceはコード側） -->
+            <!-- 分針 -->
             <Image x:Name="ImgMinute"
                    Stretch="Uniform"
                    RenderOptions.BitmapScalingMode="HighQuality"
@@ -39,10 +57,14 @@
             </Image>
         </Grid>
 
-        <!-- 下部：アラームUI（簡易） -->
-        <Border VerticalAlignment="Bottom" Margin="0,12,0,0" Padding="10"
-                Background="#1A000000" CornerRadius="12">
+        <!-- 下部：アラームUI（右クリックで表示/非表示を切替） -->
+        <Border x:Name="AlarmPanel"
+            VerticalAlignment="Bottom" Margin="0,12,0,0" Padding="10"
+                Background="#1A000000" CornerRadius="12"
+                Visibility="Collapsed">
+            <!-- ← 初期は非表示 -->
             <StackPanel Orientation="Vertical">
+                <!-- 現在時刻表示 -->
                 <TextBlock x:Name="TxtNow"
                            Foreground="White"
                            FontSize="18"
@@ -50,6 +72,7 @@
                            HorizontalAlignment="Center"
                            Margin="0,0,0,6"/>
 
+                <!-- アラーム設定行 -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
                     <TextBlock Text="アラーム (HH:mm):" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBox x:Name="TxtAlarm"
@@ -67,6 +90,7 @@
                               Unchecked="ChkEnableAlarm_Unchecked"/>
                 </StackPanel>
 
+                <!-- 停止ボタン行 -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
                     <Button x:Name="BtnStop"
                             Content="アラーム停止"
@@ -75,6 +99,7 @@
                             Padding="8,4"/>
                 </StackPanel>
 
+                <!-- ステータス表示 -->
                 <TextBlock x:Name="TxtStatus"
                            Foreground="#DDD"
                            FontSize="12"
@@ -83,5 +108,33 @@
                            Opacity="0.9"/>
             </StackPanel>
         </Border>
+
+        <Grid Panel.ZIndex="9999">
+            <Border HorizontalAlignment="Left"  VerticalAlignment="Stretch" Width="8"
+                    Background="Transparent" Cursor="SizeWE"
+                    MouseDown="Resize_Left_MouseDown"/>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Stretch" Width="8"
+                    Background="Transparent" Cursor="SizeWE"
+                    MouseDown="Resize_Right_MouseDown"/>
+            <Border HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="8"
+                    Background="Transparent" Cursor="SizeNS"
+                    MouseDown="Resize_Top_MouseDown"/>
+            <Border HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Height="8"
+                    Background="Transparent" Cursor="SizeNS"
+                    MouseDown="Resize_Bottom_MouseDown"/>
+
+            <Border HorizontalAlignment="Left"  VerticalAlignment="Top"    Width="16" Height="16"
+                    Background="Transparent" Cursor="SizeNWSE"
+                    MouseDown="Resize_TopLeft_MouseDown"/>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top"    Width="16" Height="16"
+                    Background="Transparent" Cursor="SizeNESW"
+                    MouseDown="Resize_TopRight_MouseDown"/>
+            <Border HorizontalAlignment="Left"  VerticalAlignment="Bottom" Width="16" Height="16"
+                    Background="Transparent" Cursor="SizeNESW"
+                    MouseDown="Resize_BottomLeft_MouseDown"/>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="16" Height="16"
+                    Background="Transparent" Cursor="SizeNWSE"
+                    MouseDown="Resize_BottomRight_MouseDown"/>
+        </Grid>
     </Grid>
 </Window>
