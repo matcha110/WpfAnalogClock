@@ -33,6 +33,7 @@ namespace WpfAnalogClock
         private double _baseMinWidth;
         private double _baseMinHeight;
         private double _scale = 1.0; // 現在の倍率
+        private DateTime? _lastAlarmTriggeredAt = null;
 
         private readonly string[] FaceFiles = { "Clock_Face-001.png", "Clock_Face-002.png", "Clock_Face-003.png" };
         private readonly string[] HourFiles = { "Clock-Hand-001h.png", "Clock-Hand-002h.png", "Clock-Hand-003h.png" };
@@ -406,9 +407,15 @@ namespace WpfAnalogClock
             if (_isRinging) return;
 
             var now = DateTime.Now;
+
+            // アラーム停止後1分未満は再アラームしない
+            if (_lastAlarmTriggeredAt.HasValue && (now - _lastAlarmTriggeredAt.Value) < TimeSpan.FromMinutes(1))
+                return;
+
             var nowHM = new TimeSpan(now.Hour, now.Minute, 0);
             if (nowHM == _alarmTime.Value)
             {
+                _lastAlarmTriggeredAt = now;
                 StartAlarm();
             }
         }
@@ -443,6 +450,11 @@ namespace WpfAnalogClock
                 _player.Stop();
                 _isRinging = false;
                 BtnStop.IsEnabled = false;
+
+                // 停止と同時に「アラーム有効」チェックを外す
+                if (ChkEnableAlarm.IsChecked == true)
+                    ChkEnableAlarm.IsChecked = false;
+
                 TxtStatus.Text = (_alarmTime.HasValue && ChkEnableAlarm.IsChecked == true)
                     ? $"アラーム待機中：{_alarmTime:hh\\:mm}"
                     : "アラーム未設定";
