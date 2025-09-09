@@ -34,6 +34,13 @@ namespace WpfAnalogClock
         private double _baseMinHeight;
         private double _scale = 1.0; // 現在の倍率
 
+        private readonly string[] FaceFiles = { "Clock_Face-001.png", "Clock_Face-002.png", "Clock_Face-003.png" };
+        private readonly string[] HourFiles = { "Clock-Hand-001h.png", "Clock-Hand-002h.png", "Clock-Hand-003h.png" };
+        private readonly string[] MinuteFiles = { "Clock-Hand-001m.png", "Clock-Hand-002m.png", "Clock-Hand-003m.png" };
+        private readonly string[] WavFiles = { "Clock-Alarm04-01.wav", "Clock-Alarm04-02.wav", "Clock-Alarm04-03.wav" };
+
+        private int _faceIdx = 0, _hourIdx = 0, _minuteIdx = 0, _wavIdx = 0;
+
         public MainWindow()
         {
             try
@@ -53,11 +60,12 @@ namespace WpfAnalogClock
 
             try
             {
-                LoadResources();
+                ApplyAssets();
+                LoadWav();
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.ToString(), "LoadResources() で例外", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.ToString(), "リソース読み込みで例外", MessageBoxButton.OK, MessageBoxImage.Error);
             }
 
             // タイマー開始（1秒ごとに更新）
@@ -77,47 +85,31 @@ namespace WpfAnalogClock
         private void CtxMenu_Opened(object sender, RoutedEventArgs e)
         {
             if (MiToggleAlarm != null && AlarmPanel != null)
-            {
-                MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible)
-                    ? "アラームを隠す"
-                    : "アラームを表示";
-            }
+                MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible) ? "アラームを隠す" : "アラームを表示";
 
             if (MiTopmost != null)
-            {
                 MiTopmost.IsChecked = this.Topmost;
-            }
 
             SetScaleMenuChecks(_scale);
+
+            SetPatternChecks();
         }
 
         private void Menu_ToggleAlarm_Click(object sender, RoutedEventArgs e)
         {
             if (AlarmPanel == null) return;
+            AlarmPanel.Visibility = (AlarmPanel.Visibility == Visibility.Visible) ? Visibility.Collapsed : Visibility.Visible;
 
-            if (AlarmPanel.Visibility == Visibility.Visible)
-            {
-                AlarmPanel.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                AlarmPanel.Visibility = Visibility.Visible;
-                ApplyAlarmFromText();
-            }
+            if (AlarmPanel.Visibility == Visibility.Visible) ApplyAlarmFromText();
 
             if (MiToggleAlarm != null)
-            {
-                MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible)
-                    ? "アラームを隠す"
-                    : "アラームを表示";
-            }
+                MiToggleAlarm.Header = (AlarmPanel.Visibility == Visibility.Visible) ? "アラームを隠す" : "アラームを表示";
         }
 
         private void Menu_Topmost_Click(object sender, RoutedEventArgs e)
         {
             this.Topmost = !this.Topmost;
-            if (MiTopmost != null)
-                MiTopmost.IsChecked = this.Topmost; 
+            if (MiTopmost != null) MiTopmost.IsChecked = this.Topmost;
         }
 
         private void Menu_Scale_Click(object sender, RoutedEventArgs e)
@@ -126,6 +118,22 @@ namespace WpfAnalogClock
             {
                 ApplyScale(scale);
                 SetScaleMenuChecks(scale);
+            }
+        }
+
+        // 背景/時針/分針/アラーム音の3パターン選択
+        private void Menu_Face_Click(object sender, RoutedEventArgs e) => OnPatternClick(sender, ref _faceIdx, ApplyAssets);
+        private void Menu_Hour_Click(object sender, RoutedEventArgs e) => OnPatternClick(sender, ref _hourIdx, ApplyAssets);
+        private void Menu_Minute_Click(object sender, RoutedEventArgs e) => OnPatternClick(sender, ref _minuteIdx, ApplyAssets);
+        private void Menu_Wav_Click(object sender, RoutedEventArgs e) => OnPatternClick(sender, ref _wavIdx, LoadWav);
+
+        private void OnPatternClick(object sender, ref int indexField, Action applyAction)
+        {
+            if (sender is MenuItem mi && mi.Tag is string tag && int.TryParse(tag, out var idx))
+            {
+                indexField = Math.Clamp(idx, 0, 2);
+                applyAction.Invoke();
+                SetPatternChecks();
             }
         }
 
@@ -144,7 +152,6 @@ namespace WpfAnalogClock
 
         private void SetScaleMenuChecks(double scale)
         {
-            // スケール候補
             (MenuItem? mi, double v)[] items =
             {
                 (MiScale050, 0.5),
@@ -153,12 +160,27 @@ namespace WpfAnalogClock
                 (MiScale125, 1.25),
                 (MiScale150, 1.5),
             };
-
-            // 微小な差は許容
             foreach (var (mi, v) in items)
+                if (mi != null) mi.IsChecked = Math.Abs(scale - v) < 0.0001;
+        }
+
+        private void ApplyAssets()
+        {
+            TrySetImage(ImgFace, "resources", FaceFiles[_faceIdx], "背景");
+            TrySetImage(ImgHour, "resources", HourFiles[_hourIdx], "時針");
+            TrySetImage(ImgMinute, "resources", MinuteFiles[_minuteIdx], "分針");
+        }
+
+        private void TrySetImage(System.Windows.Controls.Image img, string folder, string file, string label)
+        {
+            var bmp = LoadBitmapWithFallback(folder, file, out var info);
+            if (bmp != null)
             {
-                if (mi != null)
-                    mi.IsChecked = Math.Abs(scale - v) < 0.0001;
+                img.Source = bmp;
+            }
+            else
+            {
+                MessageBox.Show($"{label}の画像を読み込めませんでした。\n試したパス:\n{info}", "読み込み失敗", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
@@ -178,20 +200,57 @@ namespace WpfAnalogClock
         private void Resize_BottomLeft_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOMLEFT);
         private void Resize_BottomRight_MouseDown(object sender, MouseButtonEventArgs e) => BeginResize(HTBOTTOMRIGHT);
 
-        private void LoadResources()
+        private void LoadWav()
         {
-            const string FACE = "Clock_Face-001.png";
-            const string HOUR = "Clock-Hand-001h.png";
-            const string MIN = "Clock-Hand-001m.png";
-            const string WAV = "Clock-Alarm04-01.wav";
+            bool wasRinging = _isRinging;
+            if (_player != null)
+            {
+                try { _player.Stop(); } catch { }
+            }
 
-            ImgFace.Source = LoadBitmapWithFallback("resources", FACE, out _);
-            ImgHour.Source = LoadBitmapWithFallback("resources", HOUR, out _);
-            ImgMinute.Source = LoadBitmapWithFallback("resources", MIN, out _);
+            _wavStream?.Dispose();
+            _wavStream = LoadStreamWithFallback("resources", WavFiles[_wavIdx], out var info);
 
-            _wavStream = LoadStreamWithFallback("resources", WAV, out _);
-            _player = (_wavStream != null) ? new SoundPlayer(_wavStream) : null;
-            _player?.Load();
+            if (_wavStream == null)
+            {
+                MessageBox.Show($"アラーム音を読み込めませんでした。\n試したパス:\n{info}", "読み込み失敗", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _player = null;
+                _isRinging = false;
+                BtnStop.IsEnabled = false;
+                return;
+            }
+
+            _player = new SoundPlayer(_wavStream);
+            try { _player.Load(); } catch { /* エラー処理 */ }
+
+            if (wasRinging)
+            {
+                try { _player.PlayLooping(); _isRinging = true; }
+                catch { _isRinging = false; }
+            }
+        }
+
+        private void SetPatternChecks()
+        {
+            // 背景
+            if (MiFace1 != null) MiFace1.IsChecked = _faceIdx == 0;
+            if (MiFace2 != null) MiFace2.IsChecked = _faceIdx == 1;
+            if (MiFace3 != null) MiFace3.IsChecked = _faceIdx == 2;
+
+            // 時針
+            if (MiHour1 != null) MiHour1.IsChecked = _hourIdx == 0;
+            if (MiHour2 != null) MiHour2.IsChecked = _hourIdx == 1;
+            if (MiHour3 != null) MiHour3.IsChecked = _hourIdx == 2;
+
+            // 分針
+            if (MiMinute1 != null) MiMinute1.IsChecked = _minuteIdx == 0;
+            if (MiMinute2 != null) MiMinute2.IsChecked = _minuteIdx == 1;
+            if (MiMinute3 != null) MiMinute3.IsChecked = _minuteIdx == 2;
+
+            // アラーム音
+            if (MiWav1 != null) MiWav1.IsChecked = _wavIdx == 0;
+            if (MiWav2 != null) MiWav2.IsChecked = _wavIdx == 1;
+            if (MiWav3 != null) MiWav3.IsChecked = _wavIdx == 2;
         }
 
         private BitmapImage? LoadBitmapWithFallback(string folder, string file, out string info)
@@ -304,51 +363,7 @@ namespace WpfAnalogClock
             catch (Exception ex) { error = ex; return false; }
         }
 
-        private static bool TryLoadFileStreamFromSiteOfOrigin(string relative, out MemoryStream? ms, out Exception? error)
-        {
-            ms = null; error = null;
-            try
-            {
-                var uri = new Uri($@"pack://siteoforigin:,,,/{relative}", UriKind.Absolute);
-                using var s = Application.GetRemoteStream(uri)?.Stream;
-                if (s == null) throw new IOException("GetRemoteStream returned null");
-                var mem = new MemoryStream();
-                s.CopyTo(mem);
-                mem.Position = 0;
-                ms = mem;
-                return true;
-            }
-            catch (Exception ex) { error = ex; return false; }
-        }
-
-        private static MemoryStream LoadMemoryStreamFromPack(string packUri)
-        {
-            var uri = new Uri(packUri, UriKind.Absolute);
-            StreamResourceInfo? info = Application.GetResourceStream(uri);
-            if (info?.Stream == null) throw new IOException($"リソースが見つかりません: {packUri}");
-
-            var ms = new MemoryStream();
-            info.Stream.CopyTo(ms);
-            ms.Position = 0;
-            return ms;
-        }
-
-        //private static BitmapImage LoadBitmapFromPack(string packUri)
-        //{
-        //    var uri = new Uri(packUri, UriKind.Absolute);
-        //    StreamResourceInfo? info = Application.GetResourceStream(uri);
-        //    if (info?.Stream == null) throw new IOException($"画像が見つかりません: {packUri}");
-
-        //    var bmp = new BitmapImage();
-        //    bmp.BeginInit();
-        //    bmp.CacheOption = BitmapCacheOption.OnLoad;
-        //    bmp.StreamSource = info.Stream;
-        //    bmp.EndInit();
-        //    bmp.Freeze();
-        //    return bmp;
-        //}
-
-        // ===== 時計描画更新 =====
+        // ========== 時計・移動・アラーム ==========
         private void UpdateClock()
         {
             var now = DateTime.Now;
@@ -361,16 +376,14 @@ namespace WpfAnalogClock
             RtHour.Angle = hourAngle;
         }
 
-        // ===== ドラッグで移動 =====
         private void RootGrid_MouseLeftButtonDown(object? sender, MouseButtonEventArgs e)
         {
             if (e.ButtonState == MouseButtonState.Pressed)
             {
-                try { DragMove(); } catch { /* 無視 */ }
+                try { DragMove(); } catch { /* サイズ変更中などの例外は無視 */ }
             }
         }
 
-        // ===== アラーム関連 =====
         private void ApplyAlarmFromText()
         {
             string text = TxtAlarm.Text.Trim();
@@ -404,10 +417,10 @@ namespace WpfAnalogClock
         {
             if (_player == null)
             {
-                _wavStream = LoadMemoryStreamFromPack("pack://application:,,,/resources/Clock-Alarm04-01.wav");
-                _player = new SoundPlayer(_wavStream);
-                _player.Load();
+                LoadWav();
             }
+
+            if (_player == null) return;
 
             try
             {
@@ -465,6 +478,35 @@ namespace WpfAnalogClock
             }
             catch { /* 無視 */ }
             base.OnClosed(e);
+        }
+
+        private static bool TryLoadFileStreamFromSiteOfOrigin(string relative, out MemoryStream? ms, out Exception? error)
+        {
+            ms = null;
+            error = null;
+
+            try
+            {
+                var uri = new Uri($@"pack://siteoforigin:,,,/{relative}", UriKind.Absolute);
+
+                var info = Application.GetRemoteStream(uri);
+                if (info?.Stream == null)
+                    throw new IOException("GetRemoteStream returned null");
+
+                using var s = info.Stream;
+
+                var mem = new MemoryStream();
+                s.CopyTo(mem);
+                mem.Position = 0;
+
+                ms = mem;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+                return false;
+            }
         }
     }
 }
