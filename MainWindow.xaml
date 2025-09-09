@@ -1,4 +1,5 @@
-﻿<Window x:Class="WpfAnalogClock.MainWindow"
+﻿<!-- MainWindow.xaml（全文） -->
+<Window x:Class="WpfAnalogClock.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Analog Clock"
@@ -27,12 +28,41 @@
                           IsCheckable="True"
                           Click="Menu_Topmost_Click"/>
                 <Separator/>
+
+                <!-- サイズ変更サブメニュー -->
                 <MenuItem Header="サイズ">
                     <MenuItem x:Name="MiScale050" Header="x0.5"  IsCheckable="True" Tag="0.5"  Click="Menu_Scale_Click"/>
                     <MenuItem x:Name="MiScale075" Header="x0.75" IsCheckable="True" Tag="0.75" Click="Menu_Scale_Click"/>
                     <MenuItem x:Name="MiScale100" Header="x1.0（デフォルト）" IsCheckable="True" Tag="1.0"  Click="Menu_Scale_Click"/>
                     <MenuItem x:Name="MiScale125" Header="x1.25" IsCheckable="True" Tag="1.25" Click="Menu_Scale_Click"/>
                     <MenuItem x:Name="MiScale150" Header="x1.5"  IsCheckable="True" Tag="1.5"  Click="Menu_Scale_Click"/>
+                </MenuItem>
+
+                <Separator/>
+
+                <!-- パターン選択（背景・時針・分針・アラーム音） -->
+                <MenuItem Header="背景">
+                    <MenuItem x:Name="MiFace1" Header="パターン 1" IsCheckable="True" Tag="0" Click="Menu_Face_Click"/>
+                    <MenuItem x:Name="MiFace2" Header="パターン 2" IsCheckable="True" Tag="1" Click="Menu_Face_Click"/>
+                    <MenuItem x:Name="MiFace3" Header="パターン 3" IsCheckable="True" Tag="2" Click="Menu_Face_Click"/>
+                </MenuItem>
+
+                <MenuItem Header="時針">
+                    <MenuItem x:Name="MiHour1" Header="パターン 1" IsCheckable="True" Tag="0" Click="Menu_Hour_Click"/>
+                    <MenuItem x:Name="MiHour2" Header="パターン 2" IsCheckable="True" Tag="1" Click="Menu_Hour_Click"/>
+                    <MenuItem x:Name="MiHour3" Header="パターン 3" IsCheckable="True" Tag="2" Click="Menu_Hour_Click"/>
+                </MenuItem>
+
+                <MenuItem Header="分針">
+                    <MenuItem x:Name="MiMinute1" Header="パターン 1" IsCheckable="True" Tag="0" Click="Menu_Minute_Click"/>
+                    <MenuItem x:Name="MiMinute2" Header="パターン 2" IsCheckable="True" Tag="1" Click="Menu_Minute_Click"/>
+                    <MenuItem x:Name="MiMinute3" Header="パターン 3" IsCheckable="True" Tag="2" Click="Menu_Minute_Click"/>
+                </MenuItem>
+
+                <MenuItem Header="アラーム音">
+                    <MenuItem x:Name="MiWav1" Header="パターン 1" IsCheckable="True" Tag="0" Click="Menu_Wav_Click"/>
+                    <MenuItem x:Name="MiWav2" Header="パターン 2" IsCheckable="True" Tag="1" Click="Menu_Wav_Click"/>
+                    <MenuItem x:Name="MiWav3" Header="パターン 3" IsCheckable="True" Tag="2" Click="Menu_Wav_Click"/>
                 </MenuItem>
             </ContextMenu>
         </Grid.ContextMenu>
@@ -66,8 +96,8 @@
         </Grid>
 
         <!-- 下部：アラームUI（右クリックで表示/非表示を切替） -->
-        <Border x:Name="AlarmPanel"                                 
-            VerticalAlignment="Bottom" Margin="0,12,0,0" Padding="10"
+        <Border x:Name="AlarmPanel"
+                VerticalAlignment="Bottom" Margin="0,12,0,0" Padding="10"
                 Background="#1A000000" CornerRadius="12"
                 Visibility="Collapsed">
             <!-- ← 初期は非表示 -->
