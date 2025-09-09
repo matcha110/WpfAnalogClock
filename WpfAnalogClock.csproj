@@ -7,11 +7,54 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
+
   <ItemGroup>
-    <Resource Include="resources\Clock_Face-001.png" />
-    <Resource Include="resources\Clock-Hand-001h.png" />
-    <Resource Include="resources\Clock-Hand-001m.png" />
-    <Resource Include="resources\Clock-Alarm04-01.wav" />
+    <None Remove="resources\Clock-Alarm04-02.wav" />
+    <None Remove="resources\Clock-Alarm04-03.wav" />
+    <None Remove="resources\Clock-Hand-002h.png" />
+    <None Remove="resources\Clock-Hand-002m.png" />
+    <None Remove="resources\Clock-Hand-003h.png" />
+    <None Remove="resources\Clock-Hand-003m.png" />
+    <None Remove="resources\Clock_Face-002.png" />
+    <None Remove="resources\Clock_Face-003.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="resources\Clock-Alarm04-02.wav">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Alarm04-03.wav">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Hand-002h.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Hand-002m.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Hand-003h.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Hand-003m.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock_Face-001.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Hand-001h.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Hand-001m.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock-Alarm04-01.wav">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock_Face-002.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="resources\Clock_Face-003.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
 </ItemGroup>
 
 </Project>
